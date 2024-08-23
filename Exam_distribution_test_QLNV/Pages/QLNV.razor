@@ -1,0 +1,621 @@
+﻿@page "/qlnv"
+@using Exam_distribution_test_QLNV.Services
+@using Exam_distribution_test_QLNV.Models
+@using OfficeOpenXml;
+@using OfficeOpenXml.Style;
+@using System.IO;
+@using System.Threading.Tasks;
+@using System.Text;
+@inject Service<staff> service
+@inject IJSRuntime JSRuntime
+@inject NavigationManager navi
+
+<h3>Quản Lý Nhân Viên</h3>
+
+@if (lstStaff == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <!--Modal import file-->
+    <div class="modal fade" tabindex="-1" id="ModalImportFile">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Tải lên file Exel</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <InputFile OnChange="FileSelected" />
+                    @if (uploadResult != null)
+                    {
+                        <div>
+                            <h4>Upload Result</h4>
+                            <pre>@uploadResult.StaffCode</pre>
+                            <pre>@uploadResult.Name</pre>
+                            <pre>@uploadResult.AccountFpt</pre>
+                            <pre>@uploadResult.AccountFe</pre>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button @onclick="CreateImportNV" type="button" class="btn btn-primary">Tải lên</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    stt = 0;
+
+    <hr />
+    <h5>Danh sách nhân viên</h5>
+
+    <div class="text-end">
+        <button class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#ModalImportFile">Import nhân viên</button>
+        <button class="btn btn-dark" @onclick="DownloadTemplate">Download Template</button>
+        <button class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#exampleModal">Thêm nhân viên</button>
+        <button class="btn btn-dark">Xem lịch sử import</button>
+    </div>
+    
+    <br />
+    <br />
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>STT</th>
+                <th>Mã nhân viên</th>
+                <th>Tên nhân viên</th>
+                <th>Email FPT</th>
+                <th>Email FE</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var staff in lstStaff)
+            {
+                @if (true)
+                {
+                    stt += 1;
+                }
+                <tr>
+                    <td>@stt</td>
+                    <td>@staff.StaffCode</td>
+                    <td>@staff.Name</td>
+                    <td>@staff.AccountFpt</td>
+                    <td>@staff.AccountFe</td>
+                    <td>@if (staff.Status == 0)
+                        {
+                            <div>Ngưng hoạt động</div>
+                        }else if(staff.Status == 1)
+                        {
+                            <div>Đang hoạt động</div>
+                        }
+                        else
+                        {
+                            <div>Không xác định</div>
+                        }
+                    </td>
+                    <td>
+                        <!--Btn update-->
+                        <button @onclick="() => GetById(staff.Id)" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#exampleModal2">
+                            <i class="fa-solid fa-pen-nib"></i>
+                        </button>
+                        <!--Btn Thay đổi trạng thái-->
+                        <button @onclick="() => IdToModal(staff.Id)" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#ModalAcceptUdStatus">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                        <!--Btn Chức vụ/Bộ môn/Chuyên ngành-->
+                        <a href="qlbmcn/@staff.Id">
+                            <button class="btn btn-primary">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <!-- Modal Thêm Nhân viên -->
+    <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="exampleModalLabel">Thêm nhân viên</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <EditForm Model="st" OnValidSubmit="() => CheckTrung(0)">
+                    <DataAnnotationsValidator />
+
+                    <div class="modal-body">
+                        <label class="d-flex"><span style="color:red">*</span> Mã nhân viên</label>
+                        <InputText @bind-Value="st.StaffCode" class="form-control" />
+                        <ValidationMessage For="@(() => st.StaffCode)" />
+                        <br />
+
+                        <label class="d-flex"><span style="color:red">*</span> Tên nhân viên</label>
+                        <InputText @bind-Value="st.Name" class="form-control" />
+                        <ValidationMessage For="@(() => st.Name)" />
+                        <br />
+
+                        <label class="d-flex"><span style="color:red">*</span> Email FPT</label>
+                        <InputText @bind-Value="st.AccountFpt" class="form-control" />
+                        <ValidationMessage For="@(() => st.AccountFpt)" />
+                        <br />
+
+                        <label class="d-flex"><span style="color:red">*</span> Email FE</label>
+                        <InputText @bind-Value="st.AccountFe" class="form-control" />
+                        <ValidationMessage For="@(() => st.AccountFe)" />
+
+                        <br>
+                        <p class="d-flex align-items-center">
+                            (<span style="color:red;">*</span>) Biểu thị trường không được trống
+                        </p>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                        <button type="submit" class="btn btn-primary">Lưu</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+
+    <!--Modal xác nhận thêm nv-->
+    <div class="modal fade" tabindex="-1" id="ModalAcceptCreate">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Thông báo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Bạn có chắc muốn thêm nhân viên này không?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button @onclick="Create" type="button" class="btn btn-primary">Thêm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Modal Cập nhật Nhân viên -->
+    @if(stUD != null)
+    {
+        <div class="modal fade" id="exampleModal2" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="exampleModalLabel">Sửa nhân viên</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <EditForm Model="tempStaff" OnValidSubmit="() => CheckTrung(1)">
+                        <DataAnnotationsValidator />
+
+                        <div class="modal-body">
+                            <label class="d-flex"><span style="color:red">*</span> Mã nhân viên</label>
+                            <InputText @bind-Value="tempStaff.StaffCode" class="form-control" />
+                            <ValidationMessage For="@(() => tempStaff.StaffCode)" />
+                            <br />
+
+                            <label class="d-flex"><span style="color:red">*</span> Tên nhân viên</label>
+                            <InputText @bind-Value="tempStaff.Name" class="form-control" />
+                            <ValidationMessage For="@(() => tempStaff.Name)" />
+                            <br />
+
+                            <label class="d-flex"><span style="color:red">*</span> Email FPT</label>
+                            <InputText @bind-Value="tempStaff.AccountFpt" class="form-control" />
+                            <ValidationMessage For="@(() => tempStaff.AccountFpt)" />
+                            <br />
+
+                            <label class="d-flex"><span style="color:red">*</span> Email FE</label>
+                            <InputText @bind-Value="tempStaff.AccountFe" class="form-control" />
+                            <ValidationMessage For="@(() => tempStaff.AccountFe)" />
+
+                            <br>
+                            <p class="d-flex align-items-center">
+                                (<span style="color:red;">*</span>) Biểu thị trường không được trống
+                            </p>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                            <button type="submit" class="btn btn-primary">Lưu</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!--Modal xác nhận Sửa nv-->
+    <div class="modal fade" tabindex="-1" id="ModalAcceptUpdate">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Thông báo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Bạn có chắc muốn sửa nhân viên này không?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button @onclick="Update" type="button" class="btn btn-primary">Sửa</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    @if(idTT != null)
+    {
+        <!--Modal xác nhận thay đổi trạng thái nv-->
+        <div class="modal fade" tabindex="-1" id="ModalAcceptUdStatus">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Thông báo</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Bạn có chắc muốn thay đổi trạng thái của nhân viên này không?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button @onclick="() => ThayDoiTT(idTT)" type="button" class="btn btn-primary">Thay đổi</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+<script>
+    function showMs(message) {
+        alert(message);
+    }
+
+    function showModal(modalId) {
+        var modalElement = document.getElementById(modalId);
+        var modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    }
+
+    window.saveAsFile = (file) => {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob([file.data], { type: 'application/octet-stream' }));
+        link.download = file.fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+</script>
+
+@code {
+    int stt;
+
+    List<staff> lstStaff = new List<staff>();
+
+    //Biến cho phục vụ việc create
+    staff st = new staff();
+
+    //Biến cho phục vụ việc update
+    staff stUD = new staff();
+    staff tempStaff = new staff();
+
+    //Biến lưu trữ Id phục vụ việc chuyển đổi trạng thái nv
+    Guid idTT = new Guid();
+
+    //Hiển thị danh sách nhân viên
+    protected override async Task OnInitializedAsync()
+    {
+        lstStaff = await service.GetAll();
+    }
+
+    //Hàm check trùng Mã, Email FPT, FE
+    protected async Task CheckTrung(int idCheck)  //idCheck = 0 nghĩa là Check trùng cho việc create
+                                                  //idCheck = 1 nghĩa là Check trùng cho việc update
+    {
+        var emFptExist = false;
+        var emFeExist = false;
+        var MaExist = false;
+
+        lstStaff = await service.GetAll();
+
+        foreach (var item in lstStaff)
+        {
+            if(idCheck == 0)
+            {
+                if (st.StaffCode == item.StaffCode)
+                {
+                    MaExist = true;
+                }
+
+                if (st.AccountFpt == item.AccountFpt)
+                {
+                    emFptExist = true;
+                }
+
+                if (st.AccountFe == item.AccountFe)
+                {
+                    emFeExist = true;
+                }
+
+                if (emFeExist == true && emFptExist == true && MaExist == true)
+                {
+                    break;
+                }
+            }
+            else
+            {
+                if (tempStaff.StaffCode == item.StaffCode && tempStaff.Id != item.Id)
+                {
+                    MaExist = true;
+                }
+
+                if (tempStaff.AccountFpt == item.AccountFpt && tempStaff.Id != item.Id)
+                {
+                    emFptExist = true;
+                }
+
+                if (tempStaff.AccountFe == item.AccountFe && tempStaff.Id != item.Id)
+                {
+                    emFeExist = true;
+                }
+
+                if (emFeExist == true && emFptExist == true && MaExist == true)
+                {
+                    break;
+                }
+            }
+
+        }
+
+        //Trả về thông báo lỗi nếu đã tồn tại
+        if(emFeExist == true || emFptExist == true || MaExist == true)
+        {
+            if (MaExist == true)
+            {
+                await JSRuntime.InvokeVoidAsync("showMs", "Mã nhân viên đã tồn tại");
+            }
+
+            if (emFptExist == true)
+            {
+                await JSRuntime.InvokeVoidAsync("showMs", "Email Fpt đã tồn tại");
+            }
+
+            if(emFeExist == true)
+            {
+                await JSRuntime.InvokeVoidAsync("showMs", "Email Fe đã tồn tại");
+            }
+        }
+        //Nếu chưa tồn tại
+        else
+        {
+            if(idCheck == 0)
+            {
+                await JSRuntime.InvokeVoidAsync("showModal", "ModalAcceptCreate");
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("showModal", "ModalAcceptUpdate");
+            }
+        }
+    }
+
+    //Thêm nhân viên
+    protected async Task Create()
+    {
+        st.Id = Guid.NewGuid();
+        st.Status = 1;
+        await service.Create(st);
+
+        navi.NavigateTo("/qlnv", true);
+
+        await JSRuntime.InvokeVoidAsync("showMs", "Thêm thành công");
+    }
+
+
+    //Tìm nhân viên
+    protected async Task GetById(Guid id)
+    {
+        stUD = await service.GetByID(id);
+
+        tempStaff = new staff
+            {
+                Id = stUD.Id,
+                StaffCode = stUD.StaffCode,
+                Name = stUD.Name,
+                AccountFpt = stUD.AccountFpt,
+                AccountFe = stUD.AccountFe,
+                Status = stUD.Status
+            };
+    }
+
+    //Sửa nhân viên
+    protected async Task Update()
+    {
+        stUD.StaffCode = tempStaff.StaffCode;
+        stUD.Name = tempStaff.Name;
+        stUD.AccountFpt = tempStaff.AccountFpt;
+        stUD.AccountFe = tempStaff.AccountFe;
+
+        await service.Update(stUD);
+
+        navi.NavigateTo("/qlnv", true);
+
+        await JSRuntime.InvokeVoidAsync("showMs", "Sửa thành công");
+    }
+
+    //Gán id của nv cần chuyển trạng thái vào 1 biến trung gian
+    protected async Task IdToModal(Guid id)
+    {
+        idTT = id;
+    }
+
+    //Thay đổi trạng thái
+    protected async Task ThayDoiTT(Guid id)
+    {
+        var stTDTT = await service.GetByID(id);
+
+        if(stTDTT != null)
+        {
+            if(stTDTT.Status == 1)
+            {
+                stTDTT.Status = 0;
+            }
+            else
+            {
+                stTDTT.Status = 1;
+            }
+            await service.Update(stTDTT);
+
+            navi.NavigateTo("/qlnv", true);
+
+            await JSRuntime.InvokeVoidAsync("showMs", "Thay đổi trạng thái thành công");
+        }
+        else
+        {
+            await JSRuntime.InvokeVoidAsync("showMs", "Không tìm thấy nhân viên cần thay đổi!");
+        }
+    }
+
+    //Download Template
+    protected async Task DownloadTemplate()
+    {
+        using (var package = new ExcelPackage())
+        {
+            var worksheet = package.Workbook.Worksheets.Add("Template Thông tin nhân viên");
+
+            //Tiêu đề
+            worksheet.Cells[1, 1].Value = "STT";
+            worksheet.Cells[1, 2].Value = "Mã nhân viên";
+            worksheet.Cells[1, 3].Value = "Họ và tên";
+            worksheet.Cells[1, 4].Value = "Email FPT";
+            worksheet.Cells[1, 5].Value = "Email FE";
+            worksheet.Cells[1, 6].Value = "Bộ môn - Chuyên ngành - Cơ sở";
+
+            //Thêm dữ liệu
+            worksheet.Cells[2, 1].Value = 1;
+            worksheet.Cells[2, 2].Value = "PH43516";
+            worksheet.Cells[2, 3].Value = "Nguyễn Vĩ Mạnh";
+            worksheet.Cells[2, 4].Value = "manhnvph43516@fpt.edu.vn";
+            worksheet.Cells[2, 5].Value = "manhnvph43516@fe.edu.vn";
+
+            var BMCN = new List<string> { "UDPM - PTPM-Java - HN", "UDPM - PTPM-C# - HN" };
+            for (int i = 0; i < BMCN.Count; i++)
+            {
+                worksheet.Cells[i + 1, 7].Value = BMCN[i];
+            }
+
+            var range = worksheet.Cells["F2:F100"]; 
+            var validation = range.DataValidation.AddListDataValidation();
+            validation.Formula.ExcelFormula = "G1:G2";
+            validation.ShowErrorMessage = true;
+            validation.ErrorTitle = "Invalid value";
+            validation.Error = "Please select a value from the list.";
+
+            worksheet.Cells["F2"].Value = BMCN[0];
+
+            worksheet.Column(7).Hidden = true;
+
+            worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+
+            var fileBytes = package.GetAsByteArray();
+
+            var stream = new MemoryStream();
+            package.SaveAs(stream);
+            stream.Position = 0;
+
+            var contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            var fileName = "Template_import.xlsx";
+            await SaveAs(fileName, stream.ToArray());
+        }
+    }
+
+    protected async Task SaveAs(string fileName, byte[] data)
+    {
+        var file = new FileDownloadResponse
+            {
+                FileName = fileName,
+                Data = data
+            };
+
+        await JSRuntime.InvokeAsync<object>("saveAsFile", file);
+    }
+
+    public class FileDownloadResponse
+    {
+        public string FileName { get; set; }
+        public byte[] Data { get; set; }
+    }
+
+
+    staff uploadResult = new staff();
+    //Khi file được chọn
+    private async Task FileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            using (var stream = new MemoryStream())
+            {
+                await file.OpenReadStream().CopyToAsync(stream);
+                stream.Position = 0;
+                await ImportExcelAsync(stream);
+            }
+        }
+    }
+
+    private async Task ImportExcelAsync(Stream fileStream)
+    {
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+        using (var package = new ExcelPackage(fileStream))
+        {
+            string stt = "";
+            string maNhanVien = "";
+            string hoVaTen = "";
+            string emailFPT = "";
+            string emailFE = "";
+            string boMonChuyenNganhCoSo = "";
+
+            var worksheet = package.Workbook.Worksheets[0];
+
+            for (int row = 2; row <= worksheet.Dimension.End.Row; row++)
+            {
+                stt = worksheet.Cells[row, 1].Text;
+                maNhanVien = worksheet.Cells[row, 2].Text;
+                hoVaTen = worksheet.Cells[row, 3].Text;
+                emailFPT = worksheet.Cells[row, 4].Text;
+                emailFE = worksheet.Cells[row, 5].Text;
+                boMonChuyenNganhCoSo = worksheet.Cells[row, 6].Text;
+            }
+
+            uploadResult.Id = Guid.NewGuid();
+            uploadResult.Status = 1;
+            uploadResult.StaffCode = maNhanVien;
+            uploadResult.Name = hoVaTen;
+            uploadResult.AccountFpt = emailFPT;
+            uploadResult.AccountFe = emailFE;
+        }
+    }
+
+    //Thêm nhân viên đã import
+    protected async Task CreateImportNV()
+    {
+        await service.Create(uploadResult);
+
+        navi.NavigateTo("/qlnv", true);
+
+        await JSRuntime.InvokeVoidAsync("showMs", "Import thành công");
+    }
+}

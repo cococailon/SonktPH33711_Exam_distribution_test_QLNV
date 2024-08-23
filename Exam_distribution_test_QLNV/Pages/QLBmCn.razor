@@ -1,0 +1,385 @@
+﻿@page "/qlbmcn/{id:guid}"
+@using Exam_distribution_test_QLNV.Services
+@using Exam_distribution_test_QLNV.Models
+@using System.ComponentModel.DataAnnotations;
+@inject Service<staff> serviceStaff
+@inject Service<DepartmentFacility> serviceDpFc
+@inject Service<Facility> serviceFc
+@inject Service<Department> serviceDp
+@inject Service<MajorFacility> serviceMjFc
+@inject Service<StaffMajorFacility> serviceStMjFc
+@inject Service<Major> serviceMj
+@inject IJSRuntime JSRuntime
+@inject NavigationManager navi
+
+<h3>Quản Lý Bộ Môn / Chuyên ngành</h3>
+<hr />
+
+@if(st != null)
+{
+    stt = 0;
+
+    //Thông tin nhân viên
+    <h5>Thông tin nhân viên</h5>
+    <hr />
+
+    <div class="d-flex">
+        <div class="col-3">
+            <label>Mã nhân viên</label>
+            <br>
+            <input class="btn text-start opacity-100" value="@st.StaffCode" disabled/>
+        </div
+
+        <div class="col-3">
+            <label>Tên nhân viên</label>
+            <br>
+            <input class="btn text-start opacity-100" value="@st.Name" disabled />
+        </div>
+
+        <div class="col-3">
+            <label>Email FPT</label>
+            <br>
+            <input class="btn text-start opacity-100" value="@st.AccountFpt" disabled />
+        </div>
+
+        <div class="col-3">
+            <label>Email FE</label>
+            <br>
+            <input class="btn text-start opacity-100" value="@st.AccountFe" disabled />
+        </div>
+    </div>
+
+    <br />
+    <hr />
+
+    //DS bộ môn / chuyên ngành
+    <h5>Danh sách bộ môn / chuyên ngành theo cơ sở</h5>
+
+    //Button thêm bộ môn / chuyên ngành
+    <div class="text-end">
+        <button class="btn btn-dark" @onclick="moModalThem">Thêm bộ môn chuyên ngành</button>
+    </div>
+    <br />
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>STT</th>
+                <th>Cơ sở</th>
+                <th>Bộ môn</th>
+                <th>Chuyên ngành</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if(lstStMjDcNameAndId != null)
+            {
+                foreach (var item in lstStMjDcNameAndId)
+                {
+                    @if (true)
+                    {
+                        stt += 1;
+                    }
+                    <tr>
+                        <td>@stt</td>
+                        <td>@item.FacilityName</td>
+                        <td>@item.DepartmentName</td>
+                        <td>@item.MajorName</td>
+                        <td>
+                            <!--Btn xóa bộ môn chuyên ngành-->
+                            <button @onclick="() => GanIdCanXoaVaoBienTrungGian(item.IdDpFc)" class="btn btn-dark">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+
+    <br />
+    <h6 class="text-danger fst-italic">*** Chú ý: Nhân viên chỉ có một bộ môn và một chuyên ngành trong một cơ sở ***</h6>
+
+    <!-- Modal Thêm bộ môn chuyên ngành -->
+    <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="exampleModalLabel">Thêm nhân viên</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <EditForm Model="mdCrBMCN" OnValidSubmit="MoModalXacNhanThem">
+                    <DataAnnotationsValidator />
+
+                    <div class="modal-body">
+                        <label class="d-flex"><span style="color:red">*</span>Cơ sở</label>
+                        <InputSelect @bind-Value="mdCrBMCN.IdFacility" class="form-control">
+                            <option value="">--Chọn cơ sở--</option>
+                            @foreach (var fac in lstFacility)
+                            {
+                                <option value="@fac.Id">@fac.Name</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => mdCrBMCN.IdFacility)" />
+                        <br />
+
+                        <label class="d-flex"><span style="color:red">*</span> Bộ môn</label>
+                        <InputSelect @bind-Value="mdCrBMCN.IdDepartment" class="form-control">
+                            <option value="">--Chọn bộ môn--</option>
+                            @foreach (var depart in lstDepart)
+                            {
+                                <option value="@depart.Id">@depart.Name</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => mdCrBMCN.IdDepartment)" />
+                        <br />
+
+                        <label class="d-flex"><span style="color:red">*</span>Chuyên ngành</label>
+                        <InputSelect @bind-Value="mdCrBMCN.IdMajor" class="form-control">
+                            <option value="">--Chọn chuyên ngành--</option>
+                            @foreach (var maj in lstMajor)
+                            {
+                                <option value="@maj.Id">@maj.Name</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => mdCrBMCN.IdMajor)" />
+                        <br />
+
+                        <br>
+                        <p class="d-flex align-items-center">
+                            (<span style="color:red;">*</span>) Biểu thị trường không được trống
+                        </p>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                        <button type="submit" class="btn btn-primary">Lưu</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+
+    <!--Modal xác nhận thêm bm cn-->
+    <div class="modal fade" tabindex="-1" id="ModalAcceptCreate">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Thông báo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Bạn có chắc muốn thêm bộ môn chuyên ngành cho nhân viên này không?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button @onclick="CreateBMCN" type="button" class="btn btn-primary">Thêm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!--Modal xác nhận xóa bm cn-->
+    <div class="modal fade" tabindex="-1" id="MdAcceptDeleteBMCN">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Thông báo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Bạn có chắc muốn xóa bộ môn chuyên ngành của nhân viên này không?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button @onclick="() => XoaBMCN(idDpFc)" type="button" class="btn btn-primary">Xóa</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <p><em>Loading...</em></p>
+}
+
+<script>
+    function showMs(message) {
+        alert(message);
+    }
+
+    function showModal(modalId) {
+        var modalElement = document.getElementById(modalId);
+        var modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    }
+</script>
+
+@code {
+    int stt;
+
+    Guid idDpFc = new Guid();
+
+    List<Facility> lstFacility = new List<Facility>();
+    List<Department> lstDepart = new List<Department>();
+    List<Major> lstMajor = new List<Major>();
+
+    //Class nhằm mục đích lưu trữ id của người dùng và những Dp, Mj, Fc mà người dùng đã chọn
+    private class ModelForCreateBMCN
+    {
+        public Guid IdStaff { get; set; }
+
+        [Required(ErrorMessage = "Cơ sở không được để trống")]
+        public Guid? IdFacility { get; set; }
+
+        [Required(ErrorMessage = "Bộ môn không được để trống")]
+        public Guid? IdDepartment { get; set; }
+
+        [Required(ErrorMessage = "Chuyên ngành không được để trống")]
+        public Guid? IdMajor { get; set; }
+    }
+
+    ModelForCreateBMCN mdCrBMCN = new ModelForCreateBMCN();
+
+    //Class nhằm mục đích gộp bảng 
+    private class StMjFcNameAndId
+    {
+        public Guid IdDpFc { get; set; }
+        public Guid? IdDepartment { get; set; }
+        public Guid? IdFacility { get; set; }
+        public Guid? IdStaff { get; set; }
+        public string FacilityName { get; set; }
+        public string DepartmentName { get; set; }
+        public string MajorName { get; set; }
+    }
+
+    staff st = new staff();
+
+    List<StMjFcNameAndId> lstStMjDcNameAndId = new List<StMjFcNameAndId>();
+
+    [Parameter] public Guid id {get; set;}
+
+    protected override async Task OnInitializedAsync()
+    {
+        st = await serviceStaff.GetByID(id);
+
+        List<DepartmentFacility> lstDpFc = await serviceDpFc.GetDpFcById(id);
+
+        //Lấy tên fac, major và depart rồi gộp vào 1 bảng
+        foreach (var item in lstDpFc)
+        {
+            var facility = await serviceFc.GetByID(item.IdFacility.Value);
+            var department = await serviceDp.GetByID(item.IdDepartment.Value);
+            var majorFacility = await serviceMjFc.GetMjFcById(item.Id);
+            var major = await serviceMj.GetByID(majorFacility[0].IdMajor.Value);
+
+            StMjFcNameAndId a = new StMjFcNameAndId()
+            {
+                    IdDpFc = item.Id,
+                    IdDepartment = item.IdDepartment,
+                    IdFacility = item.IdFacility,
+                    IdStaff = item.IdStaff,
+                    FacilityName = facility?.Name,
+                    DepartmentName = department?.Name,
+                    MajorName = major?.Name,
+            };
+
+            lstStMjDcNameAndId.Add(a);
+        }
+    }
+
+    //Lấy được dữ liệu mới nhất => mở modal
+    protected async Task moModalThem()
+    {
+        lstFacility = await serviceFc.GetAll();
+        lstDepart = await serviceDp.GetAll();
+        lstMajor = await serviceMj.GetAll();
+
+        var lstFacCanXoa = new List<Facility>();
+
+        foreach (var item in lstFacility)
+        {
+            foreach (var item2 in lstStMjDcNameAndId)
+            {
+                if(item.Id == item2.IdFacility)
+                {
+                    lstFacCanXoa.Add(item);
+                    break;
+                }
+            }
+        }
+
+        foreach (var item3 in lstFacCanXoa)
+        {
+            lstFacility.Remove(item3);
+        }
+
+        await JSRuntime.InvokeVoidAsync("showModal", "exampleModal");
+    }
+
+    //Mở modal xác nhận thêm
+    protected async Task MoModalXacNhanThem()
+    {
+        await JSRuntime.InvokeVoidAsync("showModal", "ModalAcceptCreate");
+    }
+
+    protected async Task CreateBMCN()
+    {
+        DepartmentFacility dpFcModel = new DepartmentFacility()
+        {
+            Id = Guid.NewGuid(),
+            IdDepartment = mdCrBMCN.IdDepartment,
+            IdFacility = mdCrBMCN.IdFacility,
+            IdStaff = st.Id,
+        };
+
+        MajorFacility mjFcModel = new MajorFacility()
+        {
+            Id = Guid.NewGuid(),
+            IdDepartmentFacility = dpFcModel.Id,
+            IdMajor = mdCrBMCN.IdMajor,
+        };
+
+        StaffMajorFacility stMjFc = new StaffMajorFacility()
+        {
+            Id = Guid.NewGuid(),
+            IdMajorFacility = mjFcModel.Id,
+            IdStaff = st.Id,
+        };
+
+        await serviceDpFc.Create(dpFcModel);
+        await serviceMjFc.Create(mjFcModel);
+        await serviceStMjFc.Create(stMjFc);
+
+        await JSRuntime.InvokeVoidAsync("showMs", "Thêm thành công");
+
+        navi.NavigateTo("/qlbmcn/" + st.Id, true);
+    }
+
+    //Gán Id cần xóa vào biến trung gian để modal xác nhận xóa có thể sử dụng
+    protected async Task GanIdCanXoaVaoBienTrungGian(Guid id)
+    {
+        idDpFc = id;
+
+        await JSRuntime.InvokeVoidAsync("showModal", "MdAcceptDeleteBMCN");
+    }
+
+    //Xóa Bộ môn chuyên ngành
+    protected async Task XoaBMCN(Guid id)
+    {
+        DepartmentFacility dpFcModel = await serviceDpFc.GetByID(id);
+        List<MajorFacility> lstMjFcModel = await serviceMjFc.GetMjFcById(dpFcModel.Id);
+        MajorFacility mjFcModel = lstMjFcModel[0];
+        List<StaffMajorFacility> lstStMjFcModel = await serviceStMjFc.GetStMjFcById(mjFcModel.Id);
+        StaffMajorFacility stMjFcModel = lstStMjFcModel[0];
+
+        await serviceStMjFc.Delete(stMjFcModel.Id);
+        await serviceMjFc.Delete(mjFcModel.Id);
+        await serviceDpFc.Delete(dpFcModel.Id);
+
+        await JSRuntime.InvokeVoidAsync("showMs", "Xóa bộ môn chuyên ngành thành công");
+
+        navi.NavigateTo("/qlbmcn/" + st.Id, true);
+    }
+}
